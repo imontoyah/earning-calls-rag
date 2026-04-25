@@ -1,7 +1,6 @@
 """Four retrieval strategies: semantic, self-query, temporal, hybrid."""
 
 import json
-from pathlib import Path
 
 import chromadb
 from langchain_community.retrievers import BM25Retriever
@@ -132,24 +131,7 @@ def retrieve_per_quarter(
     Retrieve the top chunks for each quarter independently.
 
     Returns a dict keyed by quarter, each value being a list of dicts
-    with keys: text, speaker, role.
-
-    TODO — your turn to implement this function.
-
-    Why this matters: a normal single-query retrieval tends to cluster
-    results in whichever quarter has the strongest semantic match,
-    completely missing other quarters. Retrieving per-quarter guarantees
-    every quarter is represented — which is essential for trend analysis.
-
-    Hints:
-      1. Loop over each quarter.
-      2. Build a `where` filter for {"quarter": quarter}.
-         If `company` is also provided, combine with $and:
-             {"$and": [{"quarter": quarter}, {"company": company}]}
-      3. Call semantic_search() with the right filter.
-      4. Map each result to {"text": ..., "speaker": ..., "role": ...}.
-      5. Store results under results_by_quarter[quarter].
-      6. Return the dict.
+    with keys: text, speaker, role, quarter, company, distance.
     """
     dict_quarter = {}
     for quarter in quarters:
@@ -165,32 +147,7 @@ def retrieve_per_quarter(
 
 
 def build_temporal_context(results_by_quarter: dict[str, list[dict]]) -> str:
-    """
-    Format per-quarter retrieval results into a single context string.
-
-    TODO — your turn to implement this function.
-
-    The expected output format is:
-
-        === Q3-2025 ===
-        [Timothy D. Cook (Chief Executive Officer)]: <text>
-
-        [Kevan Parekh (Chief Financial Officer)]: <text>
-
-        === Q4-2025 ===
-        [Timothy D. Cook (Chief Executive Officer)]: <text>
-        ...
-
-    Hints:
-      1. Sort the quarters (sorted(results_by_quarter)).
-      2. For each quarter, build a section header: f"=== {quarter} ===".
-      3. For each chunk in that quarter:
-         - Build a speaker label: name + "(role)" if role is non-empty.
-         - Format as: f"[{speaker_label}]: {chunk['text']}"
-      4. Join the chunks within a section with "\n\n".
-      5. Join sections with "\n\n".
-      6. Return the full string.
-    """
+    """Format per-quarter results into a context string with === Q#-YYYY === headers."""
     sections = []
     for quarter in sorted(results_by_quarter):       # sorted() gives ordered keys
         chunks = results_by_quarter[quarter]          # list[dict]

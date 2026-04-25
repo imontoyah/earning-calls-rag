@@ -9,6 +9,7 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data" / "processed"
 CHROMA_DIR = BASE_DIR / "chroma_db"
+COMPANIES_FILE = BASE_DIR / "data" / "companies.json"
 
 # ChromaDB
 COLLECTION_NAME = "earnings_calls"

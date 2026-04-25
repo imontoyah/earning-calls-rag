@@ -1,7 +1,6 @@
 """ChromaDB connection, document storage, and collection management."""
 
 import json
-from pathlib import Path
 
 import chromadb
 from chromadb.utils import embedding_functions
@@ -16,6 +15,7 @@ from src.config import (
     DATA_DIR,
     EMBEDDING_MODEL,
 )
+from src.ingestion import load_companies, process_transcript, save_transcript
 
 BATCH_SIZE = 50
 
@@ -141,7 +141,7 @@ def index_all(reset: bool = True) -> dict:
     """
     Load every JSON file from DATA_DIR and index it into ChromaDB.
 
-    Returns a summary dict: {filename: n_turns_indexed}.
+    Returns a summary dict: {filename: n_chunks_indexed}.
     """
     client = get_client()
     collection = get_or_create_collection(client, reset=reset)
@@ -152,7 +152,44 @@ def index_all(reset: bool = True) -> dict:
             transcript = json.load(f)
         n = index_transcript(collection, transcript)
         summary[path.name] = n
-        print(f"  Indexed {n} turns from {path.name}")
+        print(f"  Indexed {n} chunks from {path.name}")
+
+    print(f"\nTotal documents in collection: {collection.count()}")
+    return summary
+
+
+def index_from_config(reset: bool = True) -> dict:
+    """
+    Download, parse, save, and index every transcript declared in companies.json.
+
+    This is the main entry point for multi-company ingestion. It:
+      1. Reads companies.json via load_companies()
+      2. Downloads and parses each transcript via process_transcript()
+      3. Saves the JSON to data/processed/ via save_transcript()
+      4. Indexes all chunks into ChromaDB via index_transcript()
+
+    Returns a summary dict: {"TICKER Q#-YYYY": n_chunks_indexed}.
+    """
+    client = get_client()
+    collection = get_or_create_collection(client, reset=reset)
+
+    entries = load_companies()
+    summary = {}
+
+    for entry in entries:
+        key = f"{entry['ticker']} {entry['quarter']}"
+        print(f"  Processing {key}...")
+        transcript = process_transcript(
+            url=entry["url"],
+            company=entry["ticker"],
+            quarter=entry["quarter"],
+            date=entry["date"],
+        )
+        save_transcript(transcript)
+        n = index_transcript(collection, transcript)
+        summary[key] = n
+        print(f"    → {n} chunks indexed")
+
 
     print(f"\nTotal documents in collection: {collection.count()}")
     return summary
