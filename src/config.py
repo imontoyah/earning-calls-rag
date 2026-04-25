@@ -24,3 +24,7 @@ LLM_TEMPERATURE = 0
 DEFAULT_N_RESULTS = 5
 N_RESULTS_PER_QUARTER = 2
 HYBRID_WEIGHTS = [0.5, 0.5]  # [bm25_weight, semantic_weight]
+
+# Chunking — applied when indexing speaker turns into ChromaDB
+CHUNK_SIZE = 200     # max words per sub-chunk
+CHUNK_OVERLAP = 30   # words shared between consecutive sub-chunks

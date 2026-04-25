@@ -59,14 +59,14 @@ RAG pipeline to query and analyze public earnings call transcripts. Started as a
 ## PHASE 3: "Productionize the backend"
 **Goal:** Move from notebooks to a production-ready Python backend with API.
 
-### [ ] Step 3.1 — Refactor: notebooks → Python modules
+### [x] Step 3.1 — Refactor: notebooks → Python modules
 - `src/config.py` — centralized configuration (model names, paths, collection name)
 - `src/embeddings.py` — ChromaDB connection, document storage, collection management
 - `src/retrieval.py` — all 4 retrieval strategies
 - `src/rag.py` — RAG chain (prompt + LLM + output parsing)
 - `src/ingestion.py` — already exists, minor updates if needed
 
-### [ ] Step 3.2 — Better chunking
+### [x] Step 3.2 — Better chunking
 - Split long speaker turns into sub-chunks with overlap
 - Preserve speaker/role metadata on each sub-chunk
 - Improves embedding quality for long monologues

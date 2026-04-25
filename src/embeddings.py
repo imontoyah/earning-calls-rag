@@ -10,6 +10,8 @@ from langchain_community.vectorstores import Chroma
 
 from src.config import (
     CHROMA_DIR,
+    CHUNK_OVERLAP,
+    CHUNK_SIZE,
     COLLECTION_NAME,
     DATA_DIR,
     EMBEDDING_MODEL,
@@ -67,6 +69,29 @@ def get_langchain_vectorstore(persist_directory: str | None = None) -> Chroma:
     )
 
 
+def chunk_text(text: str, chunk_size: int = CHUNK_SIZE, overlap: int = CHUNK_OVERLAP) -> list[str]:
+    """
+    Split text into overlapping sub-chunks by word count.
+
+    Returns a list of strings. If the text is shorter than chunk_size,
+    returns a single-element list with the original text.
+    """
+    words = text.split()
+    if len(words)<= chunk_size:
+        return [text]
+    else:
+        chunks = []
+        start = 0
+        while start < len(words):
+            batch = words[start: start+chunk_size]
+            full_text = " ".join(batch)
+            chunks.append(full_text)
+
+            start += chunk_size-overlap
+    
+    return chunks
+
+
 def index_transcript(
     collection: chromadb.Collection,
     transcript: dict,
@@ -74,34 +99,40 @@ def index_transcript(
     """
     Add all speaker turns from a transcript dict into the ChromaDB collection.
 
-    Each speaker turn becomes one document with:
-      - document  : turn["text"]
-      - metadata  : company, quarter, speaker, role
-      - id        : "<company>_<quarter>_<turn_index>"
+    Long turns are split into overlapping sub-chunks via chunk_text().
+    Each sub-chunk becomes one document, preserving speaker/role metadata.
 
-    Returns the number of turns indexed.
+    ID format: "<company>_<quarter>_<turn_index>_<chunk_index>"
+
+    Returns the total number of chunks indexed.
     """
     documents = []
     metadatas = []
     ids = []
 
-    for i,turn in enumerate(transcript["turns"]):
-        single_id = f"{transcript['company']}_{transcript['quarter']}_{i}"
-        metadata_info = {"company": transcript["company"], "quarter": transcript["quarter"],
-                         "speaker": turn["speaker"], "role": turn["role"]}
-        documents.append(turn["text"])
-        metadatas.append(metadata_info)
-        ids.append(single_id)
-    
+    metadata_base = {
+        "company": transcript["company"],
+        "quarter": transcript["quarter"],
+    }
+
+    for turn_i, turn in enumerate(transcript["turns"]):
+        chunks = chunk_text(turn["text"])
+        for chunk_j, chunk in enumerate(chunks):
+            documents.append(chunk)
+            metadatas.append({
+                **metadata_base,
+                "speaker": turn["speaker"],
+                "role": turn["role"],
+            })
+            ids.append(f"{transcript['company']}_{transcript['quarter']}_{turn_i}_{chunk_j}")
+
     for i in range(0, len(documents), BATCH_SIZE):
-        end = min(i+BATCH_SIZE, len(documents))
-
+        end = min(i + BATCH_SIZE, len(documents))
         collection.add(
-          documents=documents[i:end],
-          metadatas=metadatas[i:end],
-          ids=ids[i:end],
+            documents=documents[i:end],
+            metadatas=metadatas[i:end],
+            ids=ids[i:end],
         )
-
 
     return len(documents)
 
