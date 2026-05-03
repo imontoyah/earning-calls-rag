@@ -40,18 +40,31 @@ def extract_article_text(html: str) -> str:
 
 
 def parse_speaker_turns(text: str) -> list[dict]:
-    """Split transcript text into speaker turns."""
+    """Split transcript text into speaker turns.
+
+    Handles the Motley Fool format where the participant list uses
+    'Role — Name' headers and each turn in the body is rendered by
+    get_text() as 'Name:\\n<speech>'.
+    """
+    role_map = {}
+    for m in re.finditer(r'^(.+?)\s*—\s*([A-Z][a-zA-Z .\-]+)\s*$', text, re.MULTILINE):
+        role_map[m.group(2).strip()] = m.group(1).strip()
+
+    marker = "Full Conference Call Transcript"
+    body = text[text.find(marker) + len(marker):] if marker in text else text
+
+    parts = re.split(r'\n([A-Z][a-zA-Z .\-]+):\n', body)
+
     turns = []
-    parts = re.split(r'([A-Z][a-zA-Z .]+\n--\n[A-Za-z ,]+)', text)
     for i in range(1, len(parts), 2):
-        name, role = parts[i].split("--", 1)
-        turn = {
-            "speaker": name.strip(),
-            "role": role.strip(),
-            "text": parts[i + 1].strip() if i + 1 < len(parts) else "",
-        }
-        if len(turn["text"]) > 10:
-            turns.append(turn)
+        name = parts[i].strip()
+        speech = parts[i + 1].strip() if i + 1 < len(parts) else ""
+        if len(speech) > 10:
+            turns.append({
+                "speaker": name,
+                "role": role_map.get(name, ""),
+                "text": speech,
+            })
     return turns
 
 
@@ -75,9 +88,9 @@ def process_transcript(url: str, company: str, quarter: str, date: str) -> dict:
     }
 
 
-def save_transcript(transcript: dict, output_dir: Path = DATA_DIR) -> Path:
+def save_transcript(transcript: dict, output_dir: Path | str = DATA_DIR) -> Path:
     """Persist a transcript dict as JSON under data/processed/."""
-    path = output_dir / f"{transcript['company']}_{transcript['quarter'].replace('-', '_')}.json"
+    path = Path(output_dir) / f"{transcript['company']}_{transcript['quarter'].replace('-', '_')}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(transcript, f, indent=2, ensure_ascii=False)

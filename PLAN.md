@@ -71,12 +71,12 @@ RAG pipeline to query and analyze public earnings call transcripts. Started as a
 - Preserve speaker/role metadata on each sub-chunk
 - Improves embedding quality for long monologues
 
-### [ ] Step 3.3 — Multi-company support
+### [x] Step 3.3 — Multi-company support
 - Config file mapping company tickers to transcript URLs
 - Ingestion script that processes all configured companies
 - Easy to add new companies
 
-### [ ] Step 3.4 — Auto-ingestion script
+### [x] Step 3.4 — Auto-ingestion script
 - CLI script: `python scripts/ingest.py`
 - Reads config, downloads new transcripts, indexes into ChromaDB
 - Can be run manually or scheduled (cron)

@@ -15,42 +15,56 @@ Environment variable required: `GROQ_API_KEY`
 ## Development Commands
 
 ```bash
-uv run jupyter notebook          # run all notebooks
-uv run python -c "from src.ingestion import process_transcript; ..."  # test ingestion module
+uv run jupyter notebook                          # explore notebooks interactively
+uv run python scripts/ingest.py                  # ingest new transcripts only
+uv run python scripts/ingest.py --reset          # wipe ChromaDB and re-index all
+uv run python scripts/ingest.py --dry-run        # preview what would be processed
+uv run python scripts/ingest.py --company AAPL   # limit to one ticker
+uv run python -c "from src.rag import ask; ..."  # test RAG chain directly
 ```
 
 ## Architecture
 
 **Data flow:**
 ```
-Motley Fool URL → download_transcript() → extract_article_text() → parse_speaker_turns()
-→ structured JSON (company, quarter, date, turns[]) → ChromaDB (embedded with all-MiniLM-L6-v2)
-→ LangChain retrieval → Groq Llama 3.3 70B → answer
+data/companies.json → load_companies() → process_transcript() → save_transcript()
+→ index_transcript() → ChromaDB (all-MiniLM-L6-v2 embeddings)
+→ retrieval strategy → Groq Llama 3.3 70B → answer
 ```
 
-**Core module** — `src/ingestion.py`:
-- `process_transcript(url, company, quarter, date)` — full pipeline returning structured dict
-- `save_transcript(transcript, output_dir)` — persists to `data/processed/<company>_<quarter>.json`
-- Each "chunk" = one speaker turn, with metadata: `company`, `quarter`, `speaker`, `role`
+**`src/config.py`** — single source of truth for all paths, model names, and tuning constants (`CHUNK_SIZE`, `CHUNK_OVERLAP`, `DEFAULT_N_RESULTS`, `HYBRID_WEIGHTS`).
 
-**ChromaDB persistence:** `chroma_db/` (gitignored). Re-run notebook 02 to rebuild from `data/processed/`.
+**`src/ingestion.py`** — scrapes Motley Fool HTML, parses into speaker turns, persists JSON. Multi-company entry point: `load_companies()` reads `data/companies.json` (schema: `{companies: [{ticker, transcripts: [{url, quarter, date}]}]}`).
 
-**Retrieval strategies (implemented in notebooks, to be refactored into `src/retrieval.py` in Phase 3):**
-1. Semantic search with manual metadata filters
-2. `SelfQueryRetriever` — LLM auto-extracts filters from natural language
-3. Per-quarter retrieval for temporal comparisons
-4. Hybrid search — BM25 + semantic (EnsembleRetriever)
+**`src/embeddings.py`** — ChromaDB management and indexing.
+- Two embedding wrappers: native chromadb (`_make_chroma_embedding_fn`) and LangChain-compatible (`_make_langchain_embedding_fn`) — the latter is required for `SelfQueryRetriever`.
+- `index_from_config()` — one-shot: downloads, parses, saves, and indexes all companies from `companies.json`.
+- `index_all()` — re-indexes from existing `data/processed/` JSONs (no download).
+- Long speaker turns are split into overlapping word-count sub-chunks via `chunk_text()` before indexing. Chunk IDs: `<company>_<quarter>_<turn_i>_<chunk_j>`.
+
+**`src/retrieval.py`** — four strategies:
+1. `semantic_search()` — direct ChromaDB cosine similarity with optional `where` filter (ChromaDB syntax).
+2. `make_self_query_retriever()` — LangChain `SelfQueryRetriever`; LLM auto-extracts metadata filters. Requires the LangChain `Chroma` vectorstore, not the raw chromadb client.
+3. `retrieve_per_quarter()` / `build_temporal_context()` — per-quarter semantic search, formats context with `=== Q#-YYYY ===` headers.
+4. `make_hybrid_retriever()` — `EnsembleRetriever` (BM25 + semantic). BM25 reads from `data/processed/` JSONs directly, so that directory must be populated first.
+
+**`src/rag.py`** — LangChain chains.
+- `ask(collection, question, where=...)` — standard semantic RAG.
+- `ask_temporal(collection, question, quarters, company=...)` — temporal comparison RAG.
+- Both return plain strings. LLM is created lazily if not passed in.
+
+**ChromaDB:** `chroma_db/` (gitignored). Rebuild by calling `index_from_config()` or `index_all()`.
 
 ## Project Phases
 
 - **Phase 1 & 2** — Complete. Notebooks 01–04 cover single-doc and multi-doc RAG.
-- **Phase 3** — In progress. Refactor notebooks into `src/` modules (`config.py`, `embeddings.py`, `retrieval.py`, `rag.py`), add FastAPI backend.
-- **Phase 4** — Planned. Streamlit UI on top of the API.
+- **Phase 3** — Steps 3.1–3.4 done. Steps 3.5 (FastAPI), 3.6 (eval script) remaining.
+- **Phase 4** — Planned. Streamlit UI.
 
-The `PLAN.md` file has the full roadmap with step-by-step tasks for Phases 3 and 4.
+See `PLAN.md` for full step-by-step roadmap.
 
 ## Data
 
-- `data/processed/` — transcript JSONs, one per company/quarter, gitignored
-- `chroma_db/` — ChromaDB vector store, gitignored
-- Transcripts sourced from Motley Fool earnings call pages
+- `data/companies.json` — registry of companies and transcript URLs to ingest (gitignored).
+- `data/processed/` — transcript JSONs, one per company/quarter (gitignored).
+- `chroma_db/` — ChromaDB vector store (gitignored).
