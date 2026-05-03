@@ -20,8 +20,11 @@ uv run python scripts/ingest.py                  # ingest new transcripts only
 uv run python scripts/ingest.py --reset          # wipe ChromaDB and re-index all
 uv run python scripts/ingest.py --dry-run        # preview what would be processed
 uv run python scripts/ingest.py --company AAPL   # limit to one ticker
+uv run fastapi dev api/main.py                   # run API in dev mode (auto-reload)
 uv run python -c "from src.rag import ask; ..."  # test RAG chain directly
 ```
+
+API docs available at `http://127.0.0.1:8000/docs` once running.
 
 ## Architecture
 
@@ -53,12 +56,18 @@ data/companies.json → load_companies() → process_transcript() → save_trans
 - `ask_temporal(collection, question, quarters, company=...)` — temporal comparison RAG.
 - Both return plain strings. LLM is created lazily if not passed in.
 
+**`api/`** — FastAPI backend (Step 3.5).
+- `main.py` — routes: `GET /health`, `GET /collections`, `POST /ask`, `POST /ask/temporal`, `POST /ingest`.
+- `deps.py` — `@lru_cache`'d singletons for the ChromaDB collection and the Groq LLM client (avoids reconnecting per request).
+- `schemas.py` — Pydantic request/response models with `Field` validation. `IngestRequest` validates `quarter` and `date` formats via regex.
+- `/ingest` returns 201 on success, 409 if the transcript JSON already exists on disk (no upsert support).
+
 **ChromaDB:** `chroma_db/` (gitignored). Rebuild by calling `index_from_config()` or `index_all()`.
 
 ## Project Phases
 
 - **Phase 1 & 2** — Complete. Notebooks 01–04 cover single-doc and multi-doc RAG.
-- **Phase 3** — Steps 3.1–3.4 done. Steps 3.5 (FastAPI), 3.6 (eval script) remaining.
+- **Phase 3** — Steps 3.1–3.5 done. Step 3.6 (eval script) remaining.
 - **Phase 4** — Planned. Streamlit UI.
 
 See `PLAN.md` for full step-by-step roadmap.

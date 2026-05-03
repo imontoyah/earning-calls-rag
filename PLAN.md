@@ -81,7 +81,7 @@ RAG pipeline to query and analyze public earnings call transcripts. Started as a
 - Reads config, downloads new transcripts, indexes into ChromaDB
 - Can be run manually or scheduled (cron)
 
-### [ ] Step 3.5 — FastAPI backend
+### [x] Step 3.5 — FastAPI backend
 - `POST /ask` — RAG query (question + optional filters)
 - `POST /ask/temporal` — temporal comparison query
 - `POST /ingest` — trigger ingestion of a new transcript
