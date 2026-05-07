@@ -1,0 +1,12 @@
+.env
+.pytest_cache
+*.pyc
+__pycache__/
+.venv/
+.git/
+
+chroma_db
+data
+notebooks/
+
+tests/

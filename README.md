@@ -90,3 +90,7 @@ The notebooks are designed to be followed in order. Each one builds on the previ
 - [x] **Phase 2**: Multi-document, self-query, temporal comparisons
 - [ ] **Phase 3**: Migration to AWS (S3, Bedrock, OpenSearch)
 - [ ] **Phase 4**: Streamlit UI, more companies, evaluation metrics
+
+
+## Endpoints usage
+http://localhost:8080/docs
