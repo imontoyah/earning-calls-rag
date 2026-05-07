@@ -88,7 +88,7 @@ RAG pipeline to query and analyze public earnings call transcripts. Started as a
 - `GET /collections` — list available companies/quarters
 - `GET /health` — health check
 
-### [ ] Step 3.6 — Evaluation script
+### [x] Step 3.6 — Evaluation script
 - Move eval logic from notebook 04 to `scripts/evaluate.py`
 - Run independently to benchmark after changes
 

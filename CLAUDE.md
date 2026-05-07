@@ -21,6 +21,9 @@ uv run python scripts/ingest.py --reset          # wipe ChromaDB and re-index al
 uv run python scripts/ingest.py --dry-run        # preview what would be processed
 uv run python scripts/ingest.py --company AAPL   # limit to one ticker
 uv run fastapi dev api/main.py                   # run API in dev mode (auto-reload)
+uv run pytest tests/                             # run the test suite
+uv run python scripts/evaluate.py                # run RAG eval (retrieval + LLM judge)
+uv run python scripts/evaluate.py --retrieval-only  # eval without Groq API calls
 uv run python -c "from src.rag import ask; ..."  # test RAG chain directly
 ```
 
@@ -64,10 +67,14 @@ data/companies.json → load_companies() → process_transcript() → save_trans
 
 **ChromaDB:** `chroma_db/` (gitignored). Rebuild by calling `index_from_config()` or `index_all()`.
 
+**`tests/`** — pytest suite. Uses `app.dependency_overrides` to swap a `FakeCollection` for the real ChromaDB. Run-time <1s, no network. Covers API endpoints, parsing, chunking, and filter composition.
+
+**`evals/cases.json`** — 8 hand-written question/expected-answer cases used by `scripts/evaluate.py` to score retrieval (quarter/speaker/keyword hits) and answer quality (LLM-as-judge for faithfulness + relevance). Tests vs evals: tests gate merges; evals produce numbers you track over time.
+
 ## Project Phases
 
 - **Phase 1 & 2** — Complete. Notebooks 01–04 cover single-doc and multi-doc RAG.
-- **Phase 3** — Steps 3.1–3.5 done. Step 3.6 (eval script) remaining.
+- **Phase 3** — Complete (steps 3.1–3.6).
 - **Phase 4** — Planned. Streamlit UI.
 
 See `PLAN.md` for full step-by-step roadmap.
