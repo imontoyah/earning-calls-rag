@@ -1,0 +1,58 @@
+[
+  {
+    "question": "What were Apple's total revenue results in Q4 2025?",
+    "expected_quarter": ["Q4-2025"],
+    "expected_speaker": "Kevan Parekh",
+    "expected_keywords": ["102.5", "billion", "8%"],
+    "category": "factual"
+  },
+  {
+    "question": "What was Apple's revenue in Q3 2025?",
+    "expected_quarter": ["Q3-2025"],
+    "expected_speaker": "Kevan Parekh",
+    "expected_keywords": ["94", "billion", "10%"],
+    "category": "factual"
+  },
+  {
+    "question": "What did the CFO say about gross margins in Q4 2025?",
+    "expected_quarter": ["Q4-2025"],
+    "expected_speaker": "Kevan Parekh",
+    "expected_keywords": ["margin", "gross"],
+    "category": "speaker-specific"
+  },
+  {
+    "question": "What did Tim Cook say about Apple Intelligence?",
+    "expected_quarter": ["Q3-2025", "Q4-2025", "Q1-2026"],
+    "expected_speaker": "Timothy D. Cook",
+    "expected_keywords": ["Apple Intelligence"],
+    "category": "speaker-specific"
+  },
+  {
+    "question": "What were the iPhone results in Q3 2025?",
+    "expected_quarter": ["Q3-2025"],
+    "expected_speaker": "",
+    "expected_keywords": ["iPhone"],
+    "category": "quarter-specific"
+  },
+  {
+    "question": "What is Apple's revenue guidance for the next quarter in Q1 2026?",
+    "expected_quarter": ["Q1-2026"],
+    "expected_speaker": "",
+    "expected_keywords": ["guidance", "expect"],
+    "category": "quarter-specific"
+  },
+  {
+    "question": "How has Apple's revenue changed across quarters?",
+    "expected_quarter": ["Q3-2025", "Q4-2025"],
+    "expected_speaker": "",
+    "expected_keywords": ["94", "102.5"],
+    "category": "cross-quarter"
+  },
+  {
+    "question": "What is Apple's strategy for electric vehicles?",
+    "expected_quarter": [],
+    "expected_speaker": "",
+    "expected_keywords": [],
+    "category": "off-topic"
+  }
+]
