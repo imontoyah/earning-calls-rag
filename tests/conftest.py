@@ -5,11 +5,19 @@ our handlers actually call, then use FastAPI's dependency_overrides to
 swap the real one out. Tests run without touching the real vector store.
 """
 
+import os
+
 import pytest
 from fastapi.testclient import TestClient
 
+# Set API_KEY before importing the app so verify_api_key sees a value during tests.
+TEST_API_KEY = "test-api-key"
+os.environ["API_KEY"] = TEST_API_KEY
+
 from api.deps import get_collection
 from api.main import app
+
+AUTH_HEADERS = {"X-API-Key": TEST_API_KEY}
 
 
 class FakeCollection:

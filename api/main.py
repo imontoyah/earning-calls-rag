@@ -4,7 +4,7 @@ import chromadb
 from fastapi import Depends, FastAPI, HTTPException, status
 from langchain_groq import ChatGroq
 
-from api.deps import get_collection, get_llm
+from api.deps import get_collection, get_llm, verify_api_key
 from api.schemas import (
     AskRequest,
     AskResponse,
@@ -68,7 +68,7 @@ def collections(
     )
 
 
-@app.post("/ask", response_model=AskResponse)
+@app.post("/ask", response_model=AskResponse, dependencies=[Depends(verify_api_key)])
 def ask_endpoint(
     req: AskRequest,
     collection: chromadb.Collection = Depends(get_collection),
@@ -84,7 +84,7 @@ def ask_endpoint(
     return AskResponse(answer=answer)
 
 
-@app.post("/ask/temporal", response_model=TemporalAskResponse)
+@app.post("/ask/temporal", response_model=TemporalAskResponse, dependencies=[Depends(verify_api_key)])
 def ask_temporal_endpoint(
     req: TemporalAskRequest,
     collection: chromadb.Collection = Depends(get_collection),
@@ -100,7 +100,12 @@ def ask_temporal_endpoint(
     )
     return TemporalAskResponse(answer=answer)
 
-@app.post("/ingest", response_model=IngestResponse, status_code=status.HTTP_201_CREATED)
+@app.post(
+    "/ingest",
+    response_model=IngestResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(verify_api_key)],
+)
 def ingest_endpoint(
     req: IngestRequest,
     collection: chromadb.Collection = Depends(get_collection),
