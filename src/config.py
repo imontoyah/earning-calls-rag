@@ -1,14 +1,18 @@
 """Centralized configuration for the earnings call RAG pipeline."""
 
+import os
 from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Paths
+# Paths. STATE_DIR holds runtime state (vector store + transcripts) and can
+# be redirected via env var so a single mounted volume is enough in
+# environments like Fly.io that allow only one volume per machine.
 BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = BASE_DIR / "data" / "processed"
-CHROMA_DIR = BASE_DIR / "chroma_db"
+STATE_DIR = Path(os.environ.get("STATE_DIR", str(BASE_DIR)))
+DATA_DIR = STATE_DIR / "data" / "processed"
+CHROMA_DIR = STATE_DIR / "chroma_db"
 COMPANIES_FILE = BASE_DIR / "data" / "companies.json"
 
 # ChromaDB
