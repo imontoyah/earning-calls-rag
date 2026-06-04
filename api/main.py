@@ -1,10 +1,13 @@
 """FastAPI backend for the earnings call RAG service."""
 
 import chromadb
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from langchain_groq import ChatGroq
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
-from api.deps import get_collection, get_llm, verify_api_key
+from api.deps import get_collection, get_llm, validate_ingest_url, verify_api_key
 from api.schemas import (
     AskRequest,
     AskResponse,
@@ -21,11 +24,15 @@ from src.embeddings import index_transcript
 from src.ingestion import process_transcript, save_transcript
 from src.rag import ask, ask_temporal
 
+limiter = Limiter(key_func=get_remote_address)
+
 app = FastAPI(
     title="Earnings Call RAG",
     description="Query and analyze public earnings call transcripts.",
     version="0.1.0",
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 def _build_where(company: str | None, quarter: str | None) -> dict | None:
@@ -69,7 +76,9 @@ def collections(
 
 
 @app.post("/ask", response_model=AskResponse, dependencies=[Depends(verify_api_key)])
+@limiter.limit("10/minute")
 def ask_endpoint(
+    request: Request,
     req: AskRequest,
     collection: chromadb.Collection = Depends(get_collection),
     llm: ChatGroq = Depends(get_llm),
@@ -85,7 +94,9 @@ def ask_endpoint(
 
 
 @app.post("/ask/temporal", response_model=TemporalAskResponse, dependencies=[Depends(verify_api_key)])
+@limiter.limit("5/minute")
 def ask_temporal_endpoint(
+    request: Request,
     req: TemporalAskRequest,
     collection: chromadb.Collection = Depends(get_collection),
     llm: ChatGroq = Depends(get_llm),
@@ -106,7 +117,9 @@ def ask_temporal_endpoint(
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(verify_api_key)],
 )
+@limiter.limit("5/hour")
 def ingest_endpoint(
+    request: Request,
     req: IngestRequest,
     collection: chromadb.Collection = Depends(get_collection),
 ) -> IngestResponse:
@@ -114,6 +127,8 @@ def ingest_endpoint(
 
     Returns 201 on success, 409 if the transcript is already on disk.
     """
+    validate_ingest_url(req.url)
+
     saved_path = DATA_DIR / f"{req.ticker}_{req.quarter.replace('-', '_')}.json"
     if saved_path.exists():
         raise HTTPException(

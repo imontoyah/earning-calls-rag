@@ -2,6 +2,9 @@
 
 from pathlib import Path
 
+import pytest
+
+from api.main import limiter
 from tests.conftest import AUTH_HEADERS
 
 
@@ -86,7 +89,7 @@ def test_ingest_returns_409_when_transcript_already_saved(
         "/ingest",
         headers=AUTH_HEADERS,
         json={
-            "url": "https://example.com",
+            "url": "https://www.fool.com/x",
             "ticker": "AAPL",
             "quarter": "Q3-2025",
             "date": "2025-08-01",
@@ -145,3 +148,62 @@ def test_health_does_not_require_api_key(client) -> None:
 def test_collections_does_not_require_api_key(client) -> None:
     response = client.get("/collections")
     assert response.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Rate limiting tests — verify the per-IP cap kicks in and returns 429.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def enabled_limiter():
+    """Turn the rate limiter on for one test and reset its counter."""
+    limiter.reset()
+    limiter.enabled = True
+    yield limiter
+    limiter.enabled = False
+    limiter.reset()
+
+
+def test_ask_rate_limit_returns_429_after_threshold(
+    client, monkeypatch, enabled_limiter
+) -> None:
+    monkeypatch.setattr("api.main.ask", lambda *a, **k: "stub")
+
+    # /ask is capped at 10/minute; the 11th call from the same IP should 429.
+    for _ in range(10):
+        ok = client.post("/ask", headers=AUTH_HEADERS, json={"question": "q"})
+        assert ok.status_code == 200
+
+    blocked = client.post("/ask", headers=AUTH_HEADERS, json={"question": "q"})
+    assert blocked.status_code == 429
+
+
+# ---------------------------------------------------------------------------
+# SSRF tests — validate_ingest_url must reject non-https and private IPs.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://www.fool.com/transcript",             # http (must be https)
+        "ftp://www.fool.com/transcript",              # non-http(s)
+        "https://evil.com/transcript",                # host not in allowlist
+        "https://fool.com.evil.com/transcript",       # suffix-spoofing attempt
+        "https://127.0.0.1/transcript",               # loopback
+        "https://169.254.169.254/latest/meta-data/",  # AWS metadata
+    ],
+)
+def test_ingest_rejects_unsafe_urls(client, url) -> None:
+    response = client.post(
+        "/ingest",
+        headers=AUTH_HEADERS,
+        json={
+            "url": url,
+            "ticker": "AAPL",
+            "quarter": "Q3-2025",
+            "date": "2025-08-01",
+        },
+    )
+    assert response.status_code == 400, f"expected 400 for {url}, got {response.status_code}"

@@ -67,7 +67,11 @@ data/companies.json → load_companies() → process_transcript() → save_trans
 - `schemas.py` — Pydantic request/response models with `Field` validation. `IngestRequest` validates `quarter` and `date` formats via regex.
 - `/ingest` returns 201 on success, 409 if the transcript JSON already exists on disk (no upsert support).
 
-**Auth (Step 5.1).** The three POST endpoints require an `X-API-Key` header that matches the server's `API_KEY` env var. Comparison uses `hmac.compare_digest` for constant time. GETs stay public so Fly's load balancer can hit `/health`. For production: `fly secrets set API_KEY=<random>`.
+**Auth (Step 5.1).** The three POST endpoints require an `X-API-Key` header that matches the server's `API_KEY` env var. Comparison uses `hmac.compare_digest` for constant time. GETs stay public so Fly's load balancer can hit `/health`. For production: `fly secrets set API_KEY=<random>`. When `API_KEY` is missing on the server, requests get `503 Service Unavailable` (not `500`) to avoid leaking misconfig — the real reason is logged server-side.
+
+**Rate limiting (Step 5.3).** `slowapi` with per-IP keys (`get_remote_address`). Limits: `/ask` 10/min, `/ask/temporal` 5/min, `/ingest` 5/hour. Limiter lives on `app.state.limiter` and is disabled globally in tests (`limiter.enabled = False` in `conftest.py`); the dedicated rate-limit test flips it on via the `enabled_limiter` fixture. Storage is in-memory — fine for the single-machine Fly setup but resets on restart.
+
+**SSRF guard (Step 5.4).** `validate_ingest_url()` in `api/deps.py` runs before `/ingest` downloads anything. Policy: `https://` only, hostname must be in `ALLOWED_INGEST_HOSTS` (currently `fool.com` / `www.fool.com`). To support a new transcript source, add its hostname to that set — no DNS resolution or IP-range logic needed.
 
 **ChromaDB:** `chroma_db/` (gitignored). Rebuild by calling `index_from_config()` or `index_all()`.
 
@@ -80,7 +84,7 @@ data/companies.json → load_companies() → process_transcript() → save_trans
 - **Phase 1 & 2** — Complete. Notebooks 01–04 cover single-doc and multi-doc RAG.
 - **Phase 3** — Complete (steps 3.1–3.6).
 - **Phase 4** — Complete. Containerize + Fly.io deploy at https://earning-calls-rag.fly.dev.
-- **Phase 5** — Security. Step 5.1 (API key auth) done. Steps 5.2–5.4 (per-role keys, rate limit, hardening) pending.
+- **Phase 5** — Security. Steps 5.1 (auth), 5.3 (rate limit), 5.4 (SSRF + info leak) done. Step 5.2 (per-role keys) pending.
 - **Phase 6** — UX (Streamlit, DELETE endpoint, multi-company). Planned.
 - **Phase 7** — Reliability (CI, logging, Sentry, monitoring). Planned.
 

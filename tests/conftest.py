@@ -15,7 +15,11 @@ TEST_API_KEY = "test-api-key"
 os.environ["API_KEY"] = TEST_API_KEY
 
 from api.deps import get_collection
-from api.main import app
+from api.main import app, limiter
+
+# Rate limiting is off by default so existing tests aren't affected.
+# The dedicated rate-limit tests flip it on (and reset state) for their assertions.
+limiter.enabled = False
 
 AUTH_HEADERS = {"X-API-Key": TEST_API_KEY}
 

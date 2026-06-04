@@ -105,15 +105,18 @@ Live at: https://earning-calls-rag.fly.dev
 - Useful when sharing access with someone who shouldn't mutate
 - Skip until there's a real need — adds complexity without immediate payoff
 
-### [ ] Step 5.3 — Rate limiting
-- Per-IP limits on `/ask` (~10/min) to cap Groq costs
-- Use `slowapi` or similar (FastAPI middleware)
-- Return `429 Too Many Requests` cleanly
+### [x] Step 5.3 — Rate limiting
+- `slowapi` with per-IP key (`get_remote_address`)
+- Limits: `/ask` 10/min, `/ask/temporal` 5/min, `/ingest` 5/hour
+- Limiter on `app.state.limiter`; `RateLimitExceeded` returns 429
+- Disabled in tests by default; `enabled_limiter` fixture flips it on for the threshold test
+- In-memory storage (resets on container restart — fine for single-machine Fly)
 
-### [ ] Step 5.4 — Hardening review
-- Audit `/ingest` for SSRF risk (it fetches arbitrary URLs — restrict to fool.com?)
-- Audit error responses for information leakage
-- Verify CORS policy (open or restricted?)
+### [x] Step 5.4 — Hardening review
+- `validate_ingest_url()` in `api/deps.py`: https-only + hostname allowlist (`ALLOWED_INGEST_HOSTS = {fool.com, www.fool.com}`). Closes SSRF on `/ingest` with the minimum code surface; add hostnames here if new sources are needed
+- `verify_api_key`: missing `API_KEY` now returns 503 (was 500 with the literal misconfig message) — logged server-side
+- CORS: left at FastAPI default (no headers) — restrictive, fine until Phase 6.1 Streamlit UI needs it
+- Tests cover unsafe URLs: non-https, non-allowlisted hosts, suffix-spoofing (`fool.com.evil.com`), private IPs, AWS metadata
 
 ---
 
