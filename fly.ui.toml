@@ -1,0 +1,25 @@
+# Fly.io config for the Streamlit UI (separate app from the API).
+# Deploy with: fly deploy --config fly.ui.toml
+
+app = 'earning-calls-rag-ui'
+primary_region = 'iad'
+
+[build]
+  dockerfile = "Dockerfile.ui"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+[[vm]]
+  memory = '512mb'
+  cpu_kind = 'shared'
+  cpus = 1
+
+[env]
+  # Points the UI at the public API. API_KEY is NOT here — it's a secret.
+  API_BASE_URL = "https://earning-calls-rag.fly.dev"

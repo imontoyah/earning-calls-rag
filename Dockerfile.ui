@@ -1,0 +1,23 @@
+# Streamlit UI image. The UI is a pure HTTP client that talks to the RAG API,
+# so it only needs streamlit + requests — NOT the ML stack (torch/chromadb).
+# Installing a minimal set keeps the image small and builds fast.
+FROM python:3.11-slim
+WORKDIR /ui
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+RUN uv venv && uv pip install streamlit==1.59.2 requests
+ENV PATH="/ui/.venv/bin:$PATH"
+
+# App code + theme config
+COPY app ./app
+COPY .streamlit ./.streamlit
+
+EXPOSE 8080
+
+# Run as non-root
+RUN useradd appuser
+USER appuser
+
+CMD ["streamlit", "run", "app/streamlit_app.py", \
+     "--server.port=8080", "--server.address=0.0.0.0"]
